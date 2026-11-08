@@ -1,0 +1,58 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: uneg_bienes_db
+    restart: "no"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-uneg_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-uneg_secure_password_2024}
+      POSTGRES_DB: ${POSTGRES_DB:-uneg_bienes_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-uneg_user} -d ${POSTGRES_DB:-uneg_bienes_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: uneg_bienes_backend
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      POSTGRES_SERVER: db
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-uneg_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-uneg_secure_password_2024}
+      POSTGRES_DB: ${POSTGRES_DB:-uneg_bienes_db}
+      SECRET_KEY: ${SECRET_KEY:-uneg_super_secret_jwt_key_mvp_2024_inventario_patrimonio}
+      ENVIRONMENT: development
+      UPLOAD_DIR: uploads
+    volumes:
+      - ./backend/app:/app/app
+      - ./backend/alembic:/app/alembic
+      - ./backend/uploads:/app/uploads
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: uneg_bienes_frontend
+    restart: "no"
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+
+volumes:
+  pgdata:
+
